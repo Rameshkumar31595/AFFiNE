@@ -108,7 +108,6 @@ export class TableClipboardController implements ReactiveController {
         }
       } catch {
         // Ignore error when reading internal format, will fallback to plain text
-        console.debug('No internal format data found, trying plain text');
       }
 
       // Try reading plain text (possibly copied from Excel)
