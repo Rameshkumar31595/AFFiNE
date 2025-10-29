@@ -44,18 +44,18 @@ export const getOrCreateI18n = (): i18n => {
           const fallbacks: string[] = [defaultLng];
           const langPart = code.split('-')[0];
 
-          // fallback xx-YY to xx, e.g. es-AR to es
-          // fallback zh-Hant to zh-Hans
-          if (langPart === 'cn') {
-            fallbacks.push('zh-Hans');
+          // fallback zh-XX variants to Simplified Chinese first
+          if (code.startsWith('zh') && code !== 'zh-Hans') {
+            fallbacks.unshift('zh-Hans');
           } else if (
+            // fallback xx-YY to xx, e.g. es-AR to es
             langPart !== code &&
             SUPPORTED_LANGUAGES[code as Language]
           ) {
             fallbacks.unshift(langPart);
           }
 
-          return fallbacks;
+          return Array.from(new Set(fallbacks));
         },
         supportedLngs: Object.keys(SUPPORTED_LANGUAGES),
         debug: false,

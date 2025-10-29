@@ -2,6 +2,7 @@ import en from './en.json' assert { type: 'json' };
 
 export type Language =
   | 'en'
+  | 'zh-CN'
   | 'zh-Hans'
   | 'zh-Hant'
   | 'fr'
@@ -58,6 +59,12 @@ export const SUPPORTED_LANGUAGES: Record<
     originalName: '简体中文',
     flagEmoji: '🇨🇳',
     resource: () => import('./zh-Hans.json'),
+  },
+  'zh-CN': {
+    name: 'Chinese (China)',
+    originalName: '简体中文（中国大陆）',
+    flagEmoji: '🇨🇳',
+    resource: () => import('../locales/zh-CN.json'),
   },
   'zh-Hant': {
     name: 'Traditional Chinese',

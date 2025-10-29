@@ -2,6 +2,7 @@ import { DNDContext } from '@affine/component';
 import { AffineOtherPageLayout } from '@affine/component/affine-other-page-layout';
 import { workbenchRoutes } from '@affine/core/desktop/workbench-router';
 import {
+  AuthService,
   DefaultServerService,
   ServersService,
 } from '@affine/core/modules/cloud';
@@ -27,6 +28,7 @@ import type { PropsWithChildren, ReactElement } from 'react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   matchPath,
+  Navigate,
   useLocation,
   useParams,
   useSearchParams,
@@ -60,6 +62,16 @@ declare global {
 
 globalThis.Y = _Y;
 
+const LOGIN_ENFORCEMENT_ENABLED =
+  typeof process !== 'undefined' &&
+  (() => {
+    const raw = (process.env.AFFINE_REQUIRE_LOGIN || '').trim();
+    if (!raw) {
+      return false;
+    }
+    return /^(true|1|yes)$/i.test(raw);
+  })();
+
 export const Component = (): ReactElement => {
   const {
     workspacesService,
@@ -67,17 +79,43 @@ export const Component = (): ReactElement => {
     serversService,
     defaultServerService,
     globalContextService,
+    authService,
   } = useServices({
     WorkspacesService,
     GlobalDialogService,
     ServersService,
     DefaultServerService,
     GlobalContextService,
+    AuthService,
   });
 
   const params = useParams();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const sessionStatus = useLiveData(authService.session.status$);
+  const sessionLoading = useLiveData(authService.session.isRevalidating$);
+  const [hasRequestedSession, setHasRequestedSession] = useState(
+    !LOGIN_ENFORCEMENT_ENABLED
+  );
+
+  useEffect(() => {
+    if (!LOGIN_ENFORCEMENT_ENABLED || hasRequestedSession) {
+      return;
+    }
+    authService.session.revalidate();
+    setHasRequestedSession(true);
+  }, [authService, hasRequestedSession]);
+
+  const loginRedirectTarget = useMemo(() => {
+    if (!LOGIN_ENFORCEMENT_ENABLED) {
+      return '';
+    }
+    const redirectUri = `${location.pathname}${location.search}${location.hash}`;
+    const params = new URLSearchParams({
+      redirect_uri: redirectUri,
+    });
+    return `/sign-in?${params.toString()}`;
+  }, [location.hash, location.pathname, location.search]);
 
   // check if we are in detail doc route, if so, maybe render share page
   const detailDocRoute = useMemo(() => {
@@ -193,6 +231,15 @@ export const Component = (): ReactElement => {
     searchParams,
     serverFromSearchParams,
   ]);
+
+  if (LOGIN_ENFORCEMENT_ENABLED) {
+    if (!hasRequestedSession || sessionLoading) {
+      return <AppContainer fallback />;
+    }
+    if (sessionStatus !== 'authenticated') {
+      return <Navigate replace to={loginRedirectTarget || '/sign-in'} />;
+    }
+  }
 
   if (workspaceNotFound) {
     if (detailDocRoute) {
